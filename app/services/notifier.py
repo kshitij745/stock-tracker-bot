@@ -61,6 +61,11 @@ def send_telegram_message(
             json=payload,
             timeout=10
         )
+        print("========== TELEGRAM DEBUG ==========")
+        print(payload)
+        print(response.status_code)
+        print(response.text)
+        print("====================================")
 
         if response.status_code == 200:
             print(f"✅ Telegram notification sent to {store_name} topic.")

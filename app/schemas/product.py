@@ -5,6 +5,7 @@ class ProductCreate(BaseModel):
     product_name: str
     store_name: str
     product_url: str
+    affiliate_url: str | None = None
     price: float | None = None
 
 
@@ -13,18 +14,20 @@ class ProductResponse(BaseModel):
     product_name: str
     store_name: str
     product_url: str
+    affiliate_url: str | None
     price: float | None
     in_stock: bool
     is_active: bool
 
     class Config:
         from_attributes = True
-        
+
 
 class ProductUpdate(BaseModel):
     product_name: str
     store_name: str
     product_url: str
+    affiliate_url: str | None = None
     price: float
     in_stock: bool
-    is_active: bool        
+    is_active: bool

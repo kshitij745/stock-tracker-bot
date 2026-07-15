@@ -1,49 +1,63 @@
-# 📌 StockTracker – Real-time E-commerce Stock Monitoring System
+# 📦 Stock Tracker Bot
 
-## 📖 Description
-StockTracker is an automated system that monitors product availability on Flipkart in real-time.  
-It uses web scraping (Playwright), a scheduler (APScheduler), and Telegram Bot integration to send instant alerts when a product comes back in stock.
+A Python-based stock monitoring application that automatically checks product availability and sends Telegram notifications when products come back in stock.
 
----
+## ✨ Features
 
-## ⚙️ Tech Stack
+- 🔍 Automatic stock monitoring
+- 🤖 Telegram Bot notifications
+- 💬 Telegram Topics support
+- 🛒 Flipkart support
+- 📅 APScheduler for automatic checking
+- 🌐 FastAPI REST APIs
+- 🗄️ MySQL database
+- 🎭 Playwright-based stock detection
+- 📝 Logging support
+
+## 🛠️ Tech Stack
+
 - Python
+- FastAPI
+- MySQL
+- SQLAlchemy
 - Playwright
 - APScheduler
-- FastAPI (if used)
-- SQLite / PostgreSQL
 - Telegram Bot API
 
----
+## 📂 Project Structure
 
-## 🚀 Features
-- Real-time stock monitoring
-- Automated scheduler (runs every 2 minutes)
-- Playwright-based web scraping
-- Telegram instant notifications
-- Duplicate alert prevention using database
+```
+app/
+├── database/
+├── models/
+├── routes/
+├── scheduler/
+├── schemas/
+├── services/
+├── trackers/
+└── bot/
+```
 
----
+## 🚀 Installation
 
-## 🧩 Architecture
-Scheduler → Service Layer → Playwright Scraper → Database → Telegram Bot
+```bash
+pip install -r requirements.txt
+playwright install
+```
 
----
+## ▶️ Run
 
-## ▶️ How to Run
-pip install -r requirements.txt  
-python main.py
+```bash
+uvicorn main:app --reload
+```
 
----
+## 📌 Current Supported Stores
 
-## 📌 API Endpoints
-- GET /products  
-- POST /products  
-- GET /products/{id}/check-stock  
+- Flipkart ✅
 
----
+## 🚧 Planned Stores
 
-## ⚠️ Challenges Solved
-- Flipkart blocking & timeout issues  
-- Duplicate notification problem  
-- Background scheduler management  
+- Amazon
+- Croma
+- Reliance Digital
+- OnePlus Store

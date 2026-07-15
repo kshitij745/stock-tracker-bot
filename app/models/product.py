@@ -13,6 +13,8 @@ class Product(Base):
     store_name = Column(String(100), nullable=False)
 
     product_url = Column(String(1000), nullable=False)
+    
+    affiliate_url = Column(String(1000), nullable=True)
 
     price = Column(Float, nullable=True)
 

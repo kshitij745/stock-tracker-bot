@@ -16,7 +16,8 @@ logs/
 *.log
 
 # Playwright Debug File
-playwright_page.html
+*_page.html
+*_page.png
 
 # IDE Files
 .vscode/

@@ -18,6 +18,7 @@ def create_product(product: ProductCreate, db: Session = Depends(get_db)):
         product_name=product.product_name,
         store_name=product.store_name,
         product_url=product.product_url,
+        affiliate_url=product.affiliate_url,
         price=product.price
     )
 
@@ -58,6 +59,7 @@ def update_product(
     product.product_name = updated_product.product_name
     product.store_name = updated_product.store_name
     product.product_url = updated_product.product_url
+    product.affiliate_url = updated_product.affiliate_url
     product.price = updated_product.price
     product.in_stock = updated_product.in_stock
     product.is_active = updated_product.is_active
@@ -81,8 +83,8 @@ def delete_product(product_id: int, db: Session = Depends(get_db)):
     return {
         "message": "Product deleted successfully"
     }
-    
-    
+
+
 @router.get("/{product_id}/check-stock")
 def check_stock(product_id: int, db: Session = Depends(get_db)):
     product = check_product_stock(db, product_id)
