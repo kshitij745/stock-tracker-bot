@@ -21,6 +21,7 @@ def check_croma_stock(product_url: str):
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
                 "Chrome/138.0.0.0 Safari/537.36"
             ),
+            headless=False,
         )
 
         context.route(

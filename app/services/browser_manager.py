@@ -1,56 +1,138 @@
 import atexit
 import threading
 
-from playwright.sync_api import sync_playwright
-from logs.logger import logger
+from playwright.sync_api import Browser, sync_playwright
 
 from app.config.proxy_manager import get_next_proxy
+from logs.logger import logger
 
 
 _thread_local = threading.local()
-_created_browsers = []
+
+_created_browsers: list[Browser] = []
 _browser_lock = threading.Lock()
 
 
-def get_browser():
+def _get_playwright():
     """
-    Har worker thread ke liye ek reusable Chromium browser return karta hai.
-
-    Ek hi worker jab multiple products check karega,
-    to Chromium dobara launch nahi hoga.
+    Current worker thread ke liye reusable Playwright instance return karta hai.
     """
 
-    browser = getattr(_thread_local, "browser", None)
-
-    if browser is not None:
-        try:
-            if browser.is_connected():
-                return browser
-        except Exception:
-            pass
-
-    playwright = getattr(_thread_local, "playwright", None)
+    playwright = getattr(
+        _thread_local,
+        "playwright",
+        None,
+    )
 
     if playwright is None:
         playwright = sync_playwright().start()
         _thread_local.playwright = playwright
 
-    logger.info(
-        f"Launching reusable browser for worker "
-        f"{threading.current_thread().name}"
+    return playwright
+
+
+def _get_thread_browsers() -> dict:
+    """
+    Current worker thread ke reusable browsers ka dictionary return karta hai.
+
+    Dictionary key:
+        (headless, use_proxy)
+    """
+
+    browsers = getattr(
+        _thread_local,
+        "browsers",
+        None,
     )
 
-    browser = playwright.chromium.launch(
-        headless=True,
-        proxy=get_next_proxy(),
-        args=[
+    if browsers is None:
+        browsers = {}
+        _thread_local.browsers = browsers
+
+    return browsers
+
+
+def get_browser(
+    headless: bool = True,
+    use_proxy: bool = True,
+):
+    """
+    Current worker thread ke liye matching reusable browser return karta hai.
+
+    Browser mode combinations:
+
+    (True, True)
+        Headless + proxy
+
+    (False, True)
+        Headed + proxy
+
+    (True, False)
+        Headless + direct connection
+
+    (False, False)
+        Headed + direct connection
+    """
+
+    browsers = _get_thread_browsers()
+
+    browser_key = (
+        headless,
+        use_proxy,
+    )
+
+    browser = browsers.get(browser_key)
+
+    if browser is not None:
+        try:
+            if browser.is_connected():
+                return browser
+
+        except Exception:
+            pass
+
+        browsers[browser_key] = None
+
+    playwright = _get_playwright()
+
+    browser_mode = (
+        "headless"
+        if headless
+        else "headed"
+    )
+
+    connection_mode = (
+        "proxy"
+        if use_proxy
+        else "direct"
+    )
+
+    logger.info(
+        f"Launching reusable {browser_mode} browser "
+        f"with {connection_mode} connection "
+        f"for worker {threading.current_thread().name}"
+    )
+
+    launch_options = {
+        "headless": headless,
+        "args": [
             "--disable-blink-features=AutomationControlled",
             "--disable-dev-shm-usage",
             "--no-sandbox",
         ],
+    }
+
+    if use_proxy:
+        proxy = get_next_proxy()
+
+        if proxy is not None:
+            launch_options["proxy"] = proxy
+
+    browser = playwright.chromium.launch(
+        **launch_options
     )
 
-    _thread_local.browser = browser
+    browsers[browser_key] = browser
 
     with _browser_lock:
         _created_browsers.append(browser)
@@ -60,20 +142,44 @@ def get_browser():
 
 def create_browser_context(
     user_agent: str,
+    headless: bool = True,
+    use_proxy: bool = True,
     locale: str = "en-IN",
     timezone_id: str = "Asia/Kolkata",
 ):
     """
-    Reusable browser ke andar ek fresh isolated context create karta hai.
+    Reusable browser ke andar fresh isolated context create karta hai.
 
-    Browser reuse hota hai, lekin cookies/session har product ke liye
-    fresh rehte hain.
+    Args:
+        user_agent:
+            Browser user-agent string.
+
+        headless:
+            True  -> Background browser.
+            False -> Visible/headed browser.
+
+        use_proxy:
+            True  -> Configured proxy use hogi.
+            False -> Direct internet connection use hogi.
+
+        locale:
+            Browser locale.
+
+        timezone_id:
+            Browser timezone.
     """
 
-    browser = get_browser()
+    browser = get_browser(
+        headless=headless,
+        use_proxy=use_proxy,
+    )
 
-    return browser.new_context(
+    context = browser.new_context(
         viewport={
+            "width": 1366,
+            "height": 768,
+        },
+        screen={
             "width": 1366,
             "height": 768,
         },
@@ -85,27 +191,80 @@ def create_browser_context(
         },
     )
 
+    context.add_init_script(
+        """
+        Object.defineProperty(navigator, 'webdriver', {
+            get: () => undefined
+        });
 
-def close_thread_browser():
+        Object.defineProperty(navigator, 'languages', {
+            get: () => ['en-IN', 'en']
+        });
+
+        Object.defineProperty(navigator, 'platform', {
+            get: () => 'Win32'
+        });
+
+        Object.defineProperty(navigator, 'hardwareConcurrency', {
+            get: () => 8
+        });
+
+        Object.defineProperty(navigator, 'deviceMemory', {
+            get: () => 8
+        });
+
+        Object.defineProperty(navigator, 'plugins', {
+            get: () => [1, 2, 3, 4, 5]
+        });
+
+        if (!window.chrome) {
+            window.chrome = {};
+        }
+
+        if (!window.chrome.runtime) {
+            window.chrome.runtime = {};
+        }
+        """
+    )
+
+    return context
+
+
+def close_thread_browsers():
     """
-    Current worker thread ka browser aur Playwright instance close karta hai.
+    Current worker thread ke sab reusable browsers close karta hai.
     """
 
-    browser = getattr(_thread_local, "browser", None)
+    browsers = getattr(
+        _thread_local,
+        "browsers",
+        None,
+    )
 
-    if browser is not None:
-        try:
-            browser.close()
-        except Exception:
-            pass
+    if browsers is not None:
+        for browser_key, browser in list(browsers.items()):
+            if browser is None:
+                continue
 
-        _thread_local.browser = None
+            try:
+                if browser.is_connected():
+                    browser.close()
 
-    playwright = getattr(_thread_local, "playwright", None)
+            except Exception:
+                pass
+
+            browsers[browser_key] = None
+
+    playwright = getattr(
+        _thread_local,
+        "playwright",
+        None,
+    )
 
     if playwright is not None:
         try:
             playwright.stop()
+
         except Exception:
             pass
 
@@ -114,7 +273,7 @@ def close_thread_browser():
 
 def close_all_browsers():
     """
-    Application shutdown ke waqt available browsers close karta hai.
+    Application shutdown par sab reusable browsers close karta hai.
     """
 
     with _browser_lock:
@@ -125,6 +284,7 @@ def close_all_browsers():
         try:
             if browser.is_connected():
                 browser.close()
+
         except Exception:
             pass
 

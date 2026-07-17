@@ -29,6 +29,7 @@ def check_flipkart_stock(product_url: str):
                 "(KHTML, like Gecko) "
                 "Chrome/138.0.0.0 Safari/537.36"
             ),
+            headless=True,
         )
 
         context.route(

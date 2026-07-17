@@ -22,6 +22,7 @@ def check_amazon_stock(product_url: str):
                 "AppleWebKit/537.36 (KHTML, like Gecko) "
                 "Chrome/137.0.0.0 Safari/537.36"
             ),
+            headless=True,
         )
 
         context.route(
