@@ -19,10 +19,21 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
 
-def check_product(db: Session, product: Product):
+def check_product(
+    db: Session,
+    product: Product,
+    return_status: bool = False,
+):
     """
     Product stock check karta hai, database update karta hai,
     aur notification settings ke hisaab se Telegram message bhejta hai.
+
+    return_status=False:
+        Sirf updated Product return hoga.
+
+    return_status=True:
+        Tuple return hoga:
+        (updated_product, current_stock_status)
     """
 
     stock_status = check_stock(product.product_url)
@@ -30,6 +41,7 @@ def check_product(db: Session, product: Product):
 
     product.last_checked = current_time
 
+    # Status determine hua ho tabhi saved stock update hoga.
     if stock_status is not None:
         product.in_stock = stock_status
 
@@ -41,9 +53,7 @@ def check_product(db: Session, product: Product):
 
     settings = get_app_settings(db)
 
-    # Product currently in stock
     if stock_status is True:
-
         send_notification = should_send_notification(
             product=product,
             settings=settings,
@@ -51,7 +61,6 @@ def check_product(db: Session, product: Product):
         )
 
         if send_notification:
-
             is_repeat = product.last_notification is not None
 
             message = build_stock_notification_message(
@@ -70,12 +79,14 @@ def check_product(db: Session, product: Product):
             if sent:
                 product.last_notification = current_time
 
-    # Product out of stock hone par notification cycle reset
     elif stock_status is False:
         product.last_notification = None
 
     db.commit()
     db.refresh(product)
+
+    if return_status:
+        return product, stock_status
 
     return product
 

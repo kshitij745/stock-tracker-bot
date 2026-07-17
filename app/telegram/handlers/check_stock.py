@@ -13,7 +13,6 @@ async def check_stock_handler(
     context: ContextTypes.DEFAULT_TYPE,
     product_id: int,
 ):
-
     db = SessionLocal()
 
     product = (
@@ -23,13 +22,11 @@ async def check_stock_handler(
     )
 
     if not product:
-
         db.close()
 
         await update.callback_query.edit_message_text(
             "❌ Product not found."
         )
-
         return
 
     await update.callback_query.edit_message_text(
@@ -37,14 +34,21 @@ async def check_stock_handler(
     )
 
     try:
-        # Run sync Playwright code in a background thread
-        product = await asyncio.to_thread(
+        product, current_status = await asyncio.to_thread(
             check_product,
             db,
             product,
+            True,
         )
 
-        stock = "✅ In Stock" if product.in_stock else "❌ Out Of Stock"
+        if current_status is True:
+            stock_text = "✅ In Stock"
+
+        elif current_status is False:
+            stock_text = "❌ Out Of Stock"
+
+        else:
+            stock_text = "⚠️ Unable to Determine"
 
         affiliate = (
             product.affiliate_url
@@ -55,15 +59,14 @@ async def check_stock_handler(
         await update.callback_query.edit_message_text(
             f"📱 <b>{product.product_name}</b>\n\n"
             f"🏪 Store : {product.store_name}\n"
-            f"📦 Status : {stock}\n\n"
+            f"📦 Status : {stock_text}\n\n"
             f"🔗 Affiliate :\n{affiliate}",
             parse_mode="HTML",
         )
 
-    except Exception as e:
-
+    except Exception as error:
         await update.callback_query.edit_message_text(
-            f"❌ Error\n\n{e}"
+            f"❌ Error\n\n{error}"
         )
 
     finally:
