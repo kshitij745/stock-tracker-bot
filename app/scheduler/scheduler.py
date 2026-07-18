@@ -10,7 +10,7 @@ from app.models.product import Product
 from app.services.product_service import check_product
 
 
-MAX_WORKERS = 5
+MAX_WORKERS = 2
 SCHEDULER_INTERVAL_SECONDS = 10
 
 
