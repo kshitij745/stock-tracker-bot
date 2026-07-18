@@ -8,9 +8,10 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.database.database import SessionLocal
 from app.models.product import Product
 from app.services.product_service import check_product
+from app.services.browser_manager import close_all_browsers
 
 
-MAX_WORKERS = 2
+MAX_WORKERS = 1
 SCHEDULER_INTERVAL_SECONDS = 10
 
 
@@ -54,16 +55,17 @@ def check_single_product(product_id: int):
 
         print(f"Checking: {product_name}")
 
-        checked_product = check_product(
+        checked_product, stock_status = check_product(
             db=db,
             product=product,
+            return_status=True,
         )
 
         return {
             "product_id": product_id,
             "product_name": product_name,
             "success": True,
-            "in_stock": checked_product.in_stock,
+            "in_stock": stock_status,
         }
 
     except Exception as error:
@@ -265,6 +267,7 @@ def disable_monitoring():
         return False
 
     scheduler.pause_job("stock_checker")
+    close_all_browser()
 
     return True
 

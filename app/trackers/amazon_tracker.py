@@ -1,9 +1,10 @@
 from app.services.browser_manager import create_browser_context
 from app.utils.resource_blocker import block_unnecessary_resources
 from logs.logger import logger
+import time
 
 
-def check_amazon_stock(product_url: str):
+def check_amazon_stock(product_url: str, retry_count: int = 1):
     """
     Checks whether an Amazon product is in stock.
 
@@ -160,9 +161,35 @@ def check_amazon_stock(product_url: str):
         return None
 
     except Exception as error:
+        error_text = str(error)
+
         logger.exception(
-            f"Amazon tracker error: {error}"
+        f"Amazon tracker error: {error}"
         )
+
+        retryable_errors = [
+            "ERR_TUNNEL_CONNECTION_FAILED",
+            "Timeout 30000ms exceeded",
+        ]
+
+        if (
+            retry_count > 0
+            and any(
+                retryable_error in error_text
+                for retryable_error in retryable_errors
+            )
+        ):
+            logger.warning(
+                 "Amazon tracker retrying after 2 seconds..."
+            )
+
+            time.sleep(2)
+
+            return check_amazon_stock(
+                product_url=product_url,
+                retry_count=retry_count - 1,
+            )
+
         return None
 
     finally:
