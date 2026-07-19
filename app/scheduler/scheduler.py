@@ -8,7 +8,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from app.database.database import SessionLocal
 from app.models.product import Product
 from app.services.product_service import check_product
-from app.services.browser_manager import close_all_browsers
 
 
 MAX_WORKERS = 1
@@ -267,7 +266,6 @@ def disable_monitoring():
         return False
 
     scheduler.pause_job("stock_checker")
-    close_all_browser()
 
     return True
 
