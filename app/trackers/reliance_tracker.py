@@ -1,4 +1,5 @@
 import re
+import json
 
 from app.services.browser_manager import create_browser_context
 from app.utils.resource_blocker import block_unnecessary_resources
@@ -25,13 +26,13 @@ def check_reliance_stock(product_url: str):
                 "Chrome/137.0.0.0 Safari/537.36"
             ),
             headless=True,
-            use_proxy=False,
+            use_proxy=True,
         )
 
-        context.route(
-            "**/*",
-            block_unnecessary_resources,
-        )
+        #context.route(
+        #    "**/*",
+        #    block_unnecessary_resources,
+        #)
 
         page = context.new_page()
 
@@ -74,6 +75,52 @@ def check_reliance_stock(product_url: str):
 
         page_title = page.title().strip()
 
+        # ---------- JSON-LD Stock Detection ----------
+        try:
+            json_ld_scripts = page.locator(
+                "script[type='application/ld+json']"
+            ).all_inner_texts()
+
+            for script in json_ld_scripts:
+                try:
+                    data = json.loads(script)
+
+                    if isinstance(data, list):
+                        items = data
+                    else:
+                        items = [data]
+
+                    for item in items:
+                        offers = item.get("offers")
+
+                        if not offers:
+                            continue
+
+                        if isinstance(offers, list):
+                            offers = offers[0]
+
+                        availability = str(
+                            offers.get("availability", "")
+                        ).lower()
+
+                        if "instock" in availability:
+                            logger.info(
+                                "Product is IN STOCK (JSON-LD)"
+                            )
+                            return True
+
+                        if "outofstock" in availability:
+                            logger.warning(
+                                "Product is OUT OF STOCK (JSON-LD)"
+                            )
+                            return False
+
+                except Exception:
+                    pass
+
+        except Exception:
+            pass
+
         logger.info(f"Page Title: {page_title}")
 
         blocked_page_keywords = [
@@ -104,6 +151,7 @@ def check_reliance_stock(product_url: str):
 
         except Exception:
             body_text = ""
+
 
         # Case-insensitive visible text selectors
         add_to_cart_text = page.get_by_text(
